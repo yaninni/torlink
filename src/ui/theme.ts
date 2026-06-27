@@ -19,6 +19,7 @@ export const ICON = {
   warn: "⚠",
   bar: "▌",
   down: "↓",
+  up: "↑",
   peer: "•",
   pause: "⏸",
 } as const;

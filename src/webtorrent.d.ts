@@ -10,6 +10,8 @@ declare module "webtorrent" {
   interface Torrent extends EventEmitter {
     infoHash: string;
     magnetURI: string;
+    torrentFile: Uint8Array;
+    ready: boolean;
     name: string;
     length: number;
     downloaded: number;
@@ -25,6 +27,7 @@ declare module "webtorrent" {
     files: TorrentFile[];
     pause(): void;
     resume(): void;
+    addPeer(peer: string): boolean;
     destroy(cb?: (err?: Error) => void): void;
   }
 
@@ -37,6 +40,8 @@ declare module "webtorrent" {
     maxConns?: number;
     dht?: boolean;
     utp?: boolean;
+    tracker?: boolean;
+    lsd?: boolean;
   }
 
   class WebTorrent extends EventEmitter {
@@ -44,8 +49,14 @@ declare module "webtorrent" {
     readonly torrents: Torrent[];
     readonly downloadSpeed: number;
     readonly uploadSpeed: number;
+    readonly torrentPort: number;
     add(
       torrentId: string,
+      opts?: TorrentOptions,
+      cb?: (torrent: Torrent) => void,
+    ): Torrent;
+    seed(
+      input: string | string[],
       opts?: TorrentOptions,
       cb?: (torrent: Torrent) => void,
     ): Torrent;

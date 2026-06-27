@@ -1,4 +1,4 @@
-import type { DownloadFocus, Region, Section } from "./store";
+import type { DownloadFocus, Region, Section, SeedFocus } from "./store";
 
 export interface Hint {
   keys: string;
@@ -33,10 +33,17 @@ export const HELP_GROUPS: HelpGroup[] = [
     title: "Downloads",
     hints: [
       { keys: "p", label: "Pause/resume" },
-      { keys: "c", label: "Cancel/remove" },
+      { keys: "c", label: "Cancel active, else remove" },
       { keys: "f", label: "Retry failed" },
       { keys: "d", label: "Download again" },
       { keys: "x", label: "Clear recent" },
+    ],
+  },
+  {
+    title: "Seeding",
+    hints: [
+      { keys: "p", label: "Pause/resume" },
+      { keys: "c", label: "Remove (same as Downloads)" },
     ],
   },
 ];
@@ -49,6 +56,7 @@ export function footerHints(
   region: Region,
   section: Section,
   downloadFocus?: DownloadFocus | null,
+  seedFocus?: SeedFocus | null,
 ): Hint[] {
   if (region === "sidebar") {
     return [
@@ -58,6 +66,11 @@ export function footerHints(
       ALWAYS,
       { keys: "q", label: "Quit" },
     ];
+  }
+  if (section === "seeding") {
+    const label =
+      seedFocus === "seeding" ? "Pause" : seedFocus === "missing" ? "Retry" : "Resume";
+    return [{ keys: "p", label }, { keys: "c", label: "Remove" }, SWITCH, ALWAYS];
   }
   if (section === "downloads") {
     if (downloadFocus === "paused") {

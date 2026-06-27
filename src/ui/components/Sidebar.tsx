@@ -12,7 +12,12 @@ const FILTERS: NavItem[] = CATEGORIES.map((c) => ({
   key: c.key as Section,
   label: c.label,
 }));
-const LIBRARY: NavItem[] = [{ key: "downloads", label: "Downloads" }];
+const LIBRARY: NavItem[] = [
+  { key: "downloads", label: "Downloads" },
+  { key: "seeding", label: "Seeding" },
+];
+
+const BADGED = (key: Section): boolean => key === "downloads" || key === "seeding";
 
 const GROUPS: NavItem[][] = [FILTERS, LIBRARY];
 
@@ -21,8 +26,7 @@ const NAV: NavItem[] = GROUPS.flat();
 const BADGE_W = " (00)".length;
 
 export const RAIL_WIDTH =
-  GUTTER +
-  Math.max(...NAV.map((n) => n.label.length + (n.key === "downloads" ? BADGE_W : 0)));
+  GUTTER + Math.max(...NAV.map((n) => n.label.length + (BADGED(n.key) ? BADGE_W : 0)));
 
 export function Sidebar() {
   const { section, setSection, region, setRegion, queue } = useStore();
@@ -30,6 +34,7 @@ export function Sidebar() {
   const idx = Math.max(0, NAV.findIndex((n) => n.key === section));
   useQueueItems(queue);
   const active = queue.activeCount;
+  const seeding = queue.seedingCount;
 
   useInput(
     (_input, key) => {
@@ -62,11 +67,14 @@ export function Sidebar() {
                 >
                   {item.label}
                 </Text>
-                {item.key === "downloads" && active > 0 ? (
-                  <Box flexShrink={0}>
-                    <Text dimColor>{` (${active})`}</Text>
-                  </Box>
-                ) : null}
+                {(() => {
+                  const n = item.key === "downloads" ? active : item.key === "seeding" ? seeding : 0;
+                  return n > 0 ? (
+                    <Box flexShrink={0}>
+                      <Text dimColor>{` (${n})`}</Text>
+                    </Box>
+                  ) : null;
+                })()}
               </Box>
             );
           })}

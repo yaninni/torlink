@@ -5,6 +5,8 @@ export interface TorrentProgress {
   downloaded: number;
   total: number;
   speed: number;
+  uploadSpeed: number;
+  uploaded: number;
   peers: number;
   timeRemaining: number;
   name: string;
@@ -14,6 +16,10 @@ export interface TorrentMeta {
   name: string;
   total: number;
   files: number;
+  // The .torrent metadata (piece hashes), available once metadata arrives. We
+  // persist it so a later re-seed can verify the on-disk file without having to
+  // re-fetch metadata from the swarm (which a bare magnet would require).
+  torrentFile?: Uint8Array;
 }
 
 export interface AddHandlers {
@@ -38,7 +44,10 @@ export class TorrentEngine {
     return this.client;
   }
 
-  add(id: string, magnet: string, dir: string, handlers: AddHandlers): void {
+  // `source` is a magnet URI, an infoHash, or a path to a .torrent file. Seeding
+  // an existing file passes the stored .torrent path so webtorrent can verify it
+  // locally instead of re-fetching metadata from the swarm.
+  add(id: string, source: string, dir: string, handlers: AddHandlers): void {
     const client = this.ensureClient();
     const existing = this.torrents.get(id);
     if (existing) {
@@ -50,7 +59,7 @@ export class TorrentEngine {
 
     let torrent: Torrent;
     try {
-      torrent = client.add(magnet, { path: dir });
+      torrent = client.add(source, { path: dir });
     } catch (e) {
       handlers.onError?.(message(e));
       return;
@@ -62,14 +71,13 @@ export class TorrentEngine {
         name: torrent.name,
         total: torrent.length,
         files: torrent.files?.length ?? 0,
+        torrentFile: torrent.torrentFile,
       });
     });
     torrent.on("done", () => {
+      // A finished torrent is a complete, verified torrent: keep it alive so it
+      // can seed. The queue owns its lifetime from here (remove/destroy).
       handlers.onDone?.();
-      this.torrents.delete(id);
-      try {
-        torrent.destroy();
-      } catch {}
     });
     torrent.on("error", (err: unknown) => {
       handlers.onError?.(message(err));
@@ -80,6 +88,11 @@ export class TorrentEngine {
     });
   }
 
+  // The TCP port the client accepts incoming peers on (diagnostics / tests).
+  listenPort(): number | null {
+    return this.client?.torrentPort ?? null;
+  }
+
   stats(id: string): TorrentProgress | null {
     const t = this.torrents.get(id);
     if (!t) return null;
@@ -88,6 +101,8 @@ export class TorrentEngine {
       downloaded: t.downloaded,
       total: t.length,
       speed: t.downloadSpeed,
+      uploadSpeed: t.uploadSpeed,
+      uploaded: t.uploaded,
       peers: t.numPeers,
       timeRemaining: t.timeRemaining,
       name: t.name,
@@ -106,9 +121,16 @@ export class TorrentEngine {
 
   destroy(): void {
     this.torrents.clear();
-    try {
-      this.client?.destroy();
-    } catch {}
+    // Never block shutdown on webtorrent's async teardown: hand off the client
+    // destroy to a later tick and let the OS reclaim sockets if we exit first.
+    const client = this.client;
     this.client = null;
+    if (client) {
+      setImmediate(() => {
+        try {
+          client.destroy();
+        } catch {}
+      });
+    }
   }
 }

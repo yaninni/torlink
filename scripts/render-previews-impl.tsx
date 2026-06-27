@@ -19,7 +19,7 @@ import { cleanText, formatBytes, formatRelative } from "../src/util/format";
 import { ansiToSvg, type AnsiToSvgOptions } from "./ansi-to-svg";
 import type { Config } from "../src/config/config";
 import type { DownloadQueue } from "../src/download/queue";
-import type { QueueItem } from "../src/download/types";
+import type { QueueItem, SeedItem } from "../src/download/types";
 import type { HistoryItem } from "../src/download/history";
 import type { TorrentResult } from "../src/sources/types";
 
@@ -50,12 +50,21 @@ const HISTORY: HistoryItem[] = [
   { id: "h2", name: "Breaking Bad S05E14 1080p WEB-DL", source: "eztv", sizeBytes: 1.6e9, magnet: "", dir: "", completedAt: NOW_MS - 90_000_000 },
 ];
 
-function fakeQueue(items: QueueItem[], history: HistoryItem[]): DownloadQueue {
+function fakeQueue(
+  items: QueueItem[],
+  history: HistoryItem[],
+  seeds: SeedItem[] = [],
+): DownloadQueue {
   const active = items.filter((i) => i.status === "downloading").length;
+  const seedingCount = seeds.filter((s) => s.status === "seeding").length;
+  const seedMap = new Map(seeds.map((s) => [s.id, s]));
   const stub = {
     getItems: () => items,
     getHistory: () => history,
+    getSeeds: () => seeds,
+    getSeed: (id: string) => seedMap.get(id),
     activeCount: active,
+    seedingCount,
     on: () => stub,
     off: () => stub,
   };
@@ -66,12 +75,13 @@ function makeStore(
   overrides: Partial<Store> = {},
   items: QueueItem[] = [],
   history: HistoryItem[] = [],
+  seeds: SeedItem[] = [],
 ): Store {
   const noop = (): void => {};
   return {
     config: { downloadDir: "~/Downloads/torlink" } as Config,
     setConfig: noop,
-    queue: fakeQueue(items, history),
+    queue: fakeQueue(items, history, seeds),
     view: "browser",
     setView: noop,
     query: "",
@@ -84,6 +94,8 @@ function makeStore(
     setCaptureMode: noop,
     downloadFocus: null,
     setDownloadFocus: noop,
+    seedFocus: null,
+    setSeedFocus: noop,
     startDownload: noop,
     notice: null,
     setNotice: noop,

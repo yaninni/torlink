@@ -3,7 +3,7 @@ import { Box, Text, useApp, useInput, useStdout, useStdin } from "ink";
 import { promises as fs } from "node:fs";
 import { loadConfig, saveConfig, type Config } from "../config/config";
 import { DownloadQueue } from "../download/queue";
-import { loadQueue } from "../download/persist";
+import { loadQueue, loadSeeds } from "../download/persist";
 import { loadHistory } from "../download/history";
 import { reconcileQueue } from "../download/reconcile";
 import { parseMagnet } from "../sources/magnet";
@@ -16,6 +16,7 @@ import {
   type DownloadFocus,
   type Region,
   type Section,
+  type SeedFocus,
   type Store,
   type View,
 } from "./store";
@@ -26,6 +27,7 @@ import { Footer } from "./components/Footer";
 import { HelpOverlay } from "./components/HelpOverlay";
 import { Results } from "./components/Results";
 import { Downloads } from "./components/Downloads";
+import { Seeding } from "./components/Seeding";
 import { Spinner } from "./components/Spinner";
 import { TabTitle } from "./components/TabTitle";
 import { Splash } from "./views/Splash";
@@ -76,6 +78,7 @@ export function App({
   const [region, setRegion] = useState<Region>("content");
   const [captureMode, setCaptureMode] = useState<CaptureMode>("none");
   const [downloadFocus, setDownloadFocus] = useState<DownloadFocus | null>(null);
+  const [seedFocus, setSeedFocus] = useState<SeedFocus | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const booting = useRef(false);
@@ -89,6 +92,7 @@ export function App({
       const q = new DownloadQueue();
       q.restore(reconcileQueue(await loadQueue()));
       q.restoreHistory(await loadHistory());
+      q.restoreSeeds(await loadSeeds());
       if (!alive) {
         q.suspend();
         return;
@@ -134,7 +138,9 @@ export function App({
   );
 
   const quitAll = useCallback(() => {
-    queue?.suspend();
+    // Flush all state synchronously up front so nothing is lost to the hard
+    // exit; the unmount effect still runs suspend() for the engine teardown.
+    queue?.persistSync();
     if (onQuit) onQuit();
     else exit();
   }, [queue, onQuit, exit]);
@@ -238,6 +244,8 @@ export function App({
       setCaptureMode,
       downloadFocus,
       setDownloadFocus,
+      seedFocus,
+      setSeedFocus,
       startDownload,
       notice,
       setNotice,
@@ -259,6 +267,7 @@ export function App({
     showHelp,
     captureMode,
     downloadFocus,
+    seedFocus,
     startDownload,
     notice,
     listRows,
@@ -351,13 +360,19 @@ export function App({
         >
           <Sidebar />
           <Box flexGrow={1} flexDirection="column">
-            {section === "downloads" ? <Downloads /> : <Results />}
+            {section === "downloads" ? (
+              <Downloads />
+            ) : section === "seeding" ? (
+              <Seeding />
+            ) : (
+              <Results />
+            )}
           </Box>
         </Box>
 
         {showFooter ? (
           <Box display={showHelp ? "none" : "flex"}>
-            <Footer hints={footerHints(region, section, downloadFocus)} />
+            <Footer hints={footerHints(region, section, downloadFocus, seedFocus)} />
           </Box>
         ) : null}
       </Box>
