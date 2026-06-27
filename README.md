@@ -6,21 +6,15 @@ torlink is a torrent finder that lives in your terminal, with zero setup and not
 
 ## Get started
 
-1. **Install Node.** It's a free tool from [nodejs.org](https://nodejs.org), the one thing torlink runs on.
+1. **Install Node** (a free, one-time download from [nodejs.org](https://nodejs.org)), it's all torlink needs.
 2. **Open your terminal.**
-3. **Run torlink:**
+3. **Start it:**
 
    ```sh
    npx torlink
    ```
 
-That's it, nothing else to install. Once it's open you can paste a magnet link straight into the search box, or just press Enter while it's empty to browse the curated library. You can also start from the command line:
-
-```sh
-npx torlink "magnet:?xt=..."           # start from a magnet link
-npx torlink "<path/to/file.torrent>"   # open a .torrent file
-npm install -g torlink                 # install for good, then run: torlink
-```
+That's the only thing you'll type. torlink opens straight to a search bar: search for what you want, paste in a magnet link, or just press Enter on an empty box to browse the curated library. From there it's all keypresses, nothing to memorize, and `?` brings up the full list anytime.
 
 ## Finding something
 
